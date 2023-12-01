@@ -4,8 +4,9 @@ import "github.com/bambookim/acl-agent/acl-api-server/global/common"
 
 type AclEntity struct {
 	Id                    int `gorm:"primarykey;autoIncrement"`
-	AclIndex              int
+	Name                  string
 	Action                string
+	Direction             string
 	SourceCidr            string
 	SourcePortStart       int
 	SourcePortStop        int

@@ -1,13 +1,24 @@
 package api
 
 import (
+	"encoding/json"
+	"io"
+	"net/http"
+
 	"github.com/bambookim/acl-agent/acl-api-server/domain/acl"
 	"github.com/gin-gonic/gin"
+	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
-func AclControllerRoute(rg *gin.RouterGroup) {
+var (
+	ERROR_CODE = map[string]int{
+		"INVALIDATE_PROTOCOL": http.StatusBadRequest,
+	}
+)
+
+func AclControllerRoute(rg *gin.RouterGroup, etcdClient *clientv3.Client) {
 	aclRepository := acl.NewAclRepository()
-	aclService := acl.NewAclService(&aclRepository)
+	aclService := acl.NewAclService(etcdClient, &aclRepository)
 	aclController := NewAclController(&aclService)
 
 	aclRouterGroup := rg.Group("/acl")
@@ -32,7 +43,7 @@ type AclControllerImpl struct {
 
 func NewAclController(aclService *acl.AclService) AclController {
 	return &AclControllerImpl{
-		AclService: aclService,
+		AclService: *aclService,
 	}
 }
 
@@ -45,7 +56,19 @@ func (ci *AclControllerImpl) GetAclByIndex(c *gin.Context) {
 }
 
 func (ci *AclControllerImpl) CreateAcl(c *gin.Context) {
+	reqDto := &acl.CreateAclRequest{}
+	body, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		errorResponse(c, err)
+	}
+	json.Unmarshal(body, reqDto)
 
+	if err := ci.AclService.CreateAcl(reqDto); err != nil {
+		errorResponse(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, "created")
 }
 
 func (ci *AclControllerImpl) ModifyAcl(c *gin.Context) {
@@ -54,4 +77,17 @@ func (ci *AclControllerImpl) ModifyAcl(c *gin.Context) {
 
 func (ci *AclControllerImpl) DeleteAcl(c *gin.Context) {
 
+}
+
+func errorResponse(c *gin.Context, err error) {
+	c.AbortWithStatusJSON(getStatusCode(err), err)
+}
+
+func getStatusCode(err error) int {
+	code, ok := ERROR_CODE[err.Error()]
+	if !ok {
+		return http.StatusInternalServerError
+	}
+
+	return code
 }
