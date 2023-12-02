@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/bambookim/acl-agent/acl-api-server/api"
+	"github.com/bambookim/acl-agent/acl-api-server/domain/acl"
 	"github.com/bambookim/acl-agent/acl-api-server/global/database"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
@@ -17,6 +18,7 @@ func main() {
 
 	// database
 	database.Connect(config.Datasource)
+	database.DB.AutoMigrate(&acl.AclEntity{})
 
 	// etcd
 	client, err := clientv3.New(clientv3.Config{

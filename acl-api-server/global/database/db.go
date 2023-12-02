@@ -3,7 +3,6 @@ package database
 import (
 	"fmt"
 
-	"github.com/bambookim/acl-agent/acl-api-server/domain/acl"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
@@ -19,8 +18,6 @@ func Connect(datasource *Datasource) {
 	if err != nil {
 		panic("database connection error")
 	}
-
-	db.AutoMigrate(&acl.AclEntity{})
 
 	DB = db
 }

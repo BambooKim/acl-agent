@@ -6,6 +6,7 @@ import (
 	"errors"
 	"log"
 
+	"github.com/bambookim/acl-agent/acl-api-server/global/database"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	vpp_acl "go.ligato.io/vpp-agent/v3/proto/ligato/vpp/acl"
 )
@@ -21,13 +22,31 @@ type AclServiceImpl struct {
 
 func NewAclService(client *clientv3.Client, aclRepository *AclRepository) AclService {
 	return &AclServiceImpl{
-		AclRepository: aclRepository,
+		AclRepository: *aclRepository,
 		client:        client,
 	}
 }
 
 func (si *AclServiceImpl) CreateAcl(req *CreateAclRequest) error {
-	// todo: acl repository save with transaction
+	entity := &AclEntity{
+		Name:            req.Name,
+		Action:          string(req.Action),
+		Direction:       string(req.Direction),
+		SourceCidr:      req.SourceCidr,
+		SourcePortStart: req.SourcePortStart,
+		SourcePortStop:  req.SourcePortStop,
+		DestCidr:        req.DestCidr,
+		DestPortStart:   req.DestPortStart,
+		DestPortStop:    req.DestPortStop,
+		Protocol:        string(req.Protocol),
+	}
+
+	tx := database.DB.Begin()
+
+	if err := si.AclRepository.Save(tx, entity); err != nil {
+		tx.Rollback()
+		return err
+	}
 
 	ipRule := &vpp_acl.ACL_Rule_IpRule{}
 	switch req.Protocol {
@@ -52,22 +71,22 @@ func (si *AclServiceImpl) CreateAcl(req *CreateAclRequest) error {
 		Interfaces: getAclInterfaces(req.Direction),
 	}
 
-	// if err := si.broker.Put(vpp_acl.Key(req.Name), newAcl); err != nil {
-	// 	return err
-	// }
-
 	newAclJson, err := json.Marshal(newAcl)
 	if err != nil {
+		tx.Rollback()
 		return err
 	}
 	log.Printf("acl: %+v", newAcl)
 	log.Printf("json: %s", string(newAclJson))
 	log.Printf("key: %s", vpp_acl.Key(req.Name))
 	if res, err := si.client.Put(context.Background(), "/vnf-agent/vpp1/"+vpp_acl.Key(req.Name), string(newAclJson)); err != nil {
+		tx.Rollback()
 		return err
 	} else {
 		log.Printf("result: %+v", res)
 	}
+
+	tx.Commit()
 
 	return nil
 }
