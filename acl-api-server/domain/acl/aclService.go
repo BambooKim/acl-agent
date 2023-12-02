@@ -15,6 +15,7 @@ import (
 type AclService interface {
 	GetAclList() ([]*GetAclResponse, error)
 	CreateAcl(req *CreateAclRequest) error
+	ModifyAcl(id int, req *ModifyAclRequest) error
 	DeleteAcl(id int) error
 }
 
@@ -189,6 +190,117 @@ func getTcpRule(dto *CreateAclRequest) *vpp_acl.ACL_Rule_IpRule {
 }
 
 func getUdpRule(dto *CreateAclRequest) *vpp_acl.ACL_Rule_IpRule {
+	return &vpp_acl.ACL_Rule_IpRule{
+		Ip: &vpp_acl.ACL_Rule_IpRule_Ip{
+			DestinationNetwork: dto.DestCidr,
+			SourceNetwork:      dto.SourceCidr,
+			Protocol:           17,
+		},
+		Udp: &vpp_acl.ACL_Rule_IpRule_Udp{
+			DestinationPortRange: &vpp_acl.ACL_Rule_IpRule_PortRange{
+				LowerPort: uint32(dto.DestPortStart),
+				UpperPort: uint32(dto.DestPortStop),
+			},
+			SourcePortRange: &vpp_acl.ACL_Rule_IpRule_PortRange{
+				LowerPort: uint32(dto.SourcePortStart),
+				UpperPort: uint32(dto.SourcePortStop),
+			},
+		},
+	}
+}
+
+func (si *AclServiceImpl) ModifyAcl(id int, req *ModifyAclRequest) error {
+	tx := database.DB.Begin()
+
+	exists, targetAcl, err := si.AclRepository.FindById(tx, id)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+	if !exists {
+		tx.Rollback()
+		return gorm.ErrRecordNotFound
+	}
+
+	ipRule := &vpp_acl.ACL_Rule_IpRule{}
+	switch req.Protocol {
+	case ACL_ICMP:
+		ipRule = getIcmpRule_(req)
+	case ACL_TCP:
+		ipRule = getTcpRule_(req)
+	case ACL_UDP:
+		ipRule = getUdpRule_(req)
+	default:
+		return errors.New("INVALIDATE_PROTOCOL")
+	}
+
+	rule := &vpp_acl.ACL_Rule{
+		Action: getAclAction(req.Action),
+		IpRule: ipRule,
+	}
+	rules := []*vpp_acl.ACL_Rule{rule}
+	modifyAcl := &vpp_acl.ACL{
+		Name:       targetAcl.Name,
+		Rules:      rules,
+		Interfaces: getAclInterfaces(req.Direction),
+	}
+
+	if err := si.AclRepository.Save(tx, targetAcl); err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	targetAclJson, err := json.Marshal(modifyAcl)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+	if res, err := si.client.Put(context.Background(), "/vnf-agent/vpp1/"+vpp_acl.Key(targetAcl.Name), string(targetAclJson)); err != nil {
+		tx.Rollback()
+		return err
+	} else {
+		log.Printf("result: %+v", res)
+	}
+
+	tx.Commit()
+
+	return nil
+}
+
+func getIcmpRule_(dto *ModifyAclRequest) *vpp_acl.ACL_Rule_IpRule {
+	return &vpp_acl.ACL_Rule_IpRule{
+		Ip: &vpp_acl.ACL_Rule_IpRule_Ip{
+			DestinationNetwork: dto.DestCidr,
+			SourceNetwork:      dto.SourceCidr,
+			Protocol:           1,
+		},
+		Icmp: &vpp_acl.ACL_Rule_IpRule_Icmp{
+			Icmpv6: false,
+		},
+	}
+}
+
+func getTcpRule_(dto *ModifyAclRequest) *vpp_acl.ACL_Rule_IpRule {
+	return &vpp_acl.ACL_Rule_IpRule{
+		Ip: &vpp_acl.ACL_Rule_IpRule_Ip{
+			DestinationNetwork: dto.DestCidr,
+			SourceNetwork:      dto.SourceCidr,
+			Protocol:           6,
+		},
+		Tcp: &vpp_acl.ACL_Rule_IpRule_Tcp{
+			DestinationPortRange: &vpp_acl.ACL_Rule_IpRule_PortRange{
+				LowerPort: uint32(dto.DestPortStart),
+				UpperPort: uint32(dto.DestPortStop),
+			},
+			SourcePortRange: &vpp_acl.ACL_Rule_IpRule_PortRange{
+				LowerPort: uint32(dto.SourcePortStart),
+				UpperPort: uint32(dto.SourcePortStop),
+			},
+		},
+	}
+}
+
+func getUdpRule_(dto *ModifyAclRequest) *vpp_acl.ACL_Rule_IpRule {
 	return &vpp_acl.ACL_Rule_IpRule{
 		Ip: &vpp_acl.ACL_Rule_IpRule_Ip{
 			DestinationNetwork: dto.DestCidr,

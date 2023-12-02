@@ -14,14 +14,15 @@ type CreateAclRequest struct {
 }
 
 type ModifyAclRequest struct {
-	Action          AclAction `json:"action"`
-	SourceCidr      string    `json:"sourceCidr"`
-	SourcePortStart int       `json:"sourcePortStart"`
-	SourcePortStop  int       `json:"sourcePortStop"`
-	DestCidr        string    `json:"destCidr"`
-	DestPortStart   int       `json:"destPortStart"`
-	DestPortStop    int       `json:"destPortStop"`
-	Protocol        string    `json:"protocol"`
+	Action          AclAction    `json:"action"`
+	Direction       AclDirection `json:"direction"`
+	SourceCidr      string       `json:"sourceCidr"`
+	SourcePortStart int          `json:"sourcePortStart"`
+	SourcePortStop  int          `json:"sourcePortStop"`
+	DestCidr        string       `json:"destCidr"`
+	DestPortStart   int          `json:"destPortStart"`
+	DestPortStop    int          `json:"destPortStop"`
+	Protocol        AclProtocol  `json:"protocol"`
 }
 
 type AclAction string

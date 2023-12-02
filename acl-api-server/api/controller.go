@@ -26,7 +26,7 @@ func AclControllerRoute(rg *gin.RouterGroup, etcdClient *clientv3.Client) {
 
 	aclRouterGroup := rg.Group("/acl")
 	aclRouterGroup.GET("", aclController.GetAclList)
-	aclRouterGroup.GET("/:index", aclController.GetAclByIndex)
+	// aclRouterGroup.GET("/:index", aclController.GetAclByIndex)
 	aclRouterGroup.POST("", aclController.CreateAcl)
 	aclRouterGroup.PUT("/:id", aclController.ModifyAcl)
 	aclRouterGroup.DELETE("/:id", aclController.DeleteAcl)
@@ -71,7 +71,10 @@ func (ci *AclControllerImpl) CreateAcl(c *gin.Context) {
 		errorResponse(c, err)
 		return
 	}
-	json.Unmarshal(body, reqDto)
+	if err := json.Unmarshal(body, reqDto); err != nil {
+		errorResponse(c, err)
+		return
+	}
 
 	if err := ci.AclService.CreateAcl(reqDto); err != nil {
 		errorResponse(c, err)
@@ -82,7 +85,25 @@ func (ci *AclControllerImpl) CreateAcl(c *gin.Context) {
 }
 
 func (ci *AclControllerImpl) ModifyAcl(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		errorResponse(c, err)
+		return
+	}
 
+	reqDto := &acl.ModifyAclRequest{}
+	body, err := io.ReadAll(c.Request.Body)
+	if err := json.Unmarshal(body, reqDto); err != nil {
+		errorResponse(c, err)
+		return
+	}
+
+	if err := ci.AclService.ModifyAcl(id, reqDto); err != nil {
+		errorResponse(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, "modified")
 }
 
 func (ci *AclControllerImpl) DeleteAcl(c *gin.Context) {
