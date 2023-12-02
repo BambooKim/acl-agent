@@ -3,7 +3,6 @@ package acl
 import (
 	"errors"
 
-	"github.com/bambookim/acl-agent/acl-api-server/global/database"
 	"gorm.io/gorm"
 )
 
@@ -11,6 +10,7 @@ type AclRepository interface {
 	FindAll(tx *gorm.DB) ([]*AclEntity, error)
 	FindById(tx *gorm.DB, id int) (bool, *AclEntity, error)
 	Save(tx *gorm.DB, aclEntity *AclEntity) error
+	DeleteById(tx *gorm.DB, id int) error
 }
 
 type AclRepositoryImpl struct{}
@@ -42,7 +42,15 @@ func (ri *AclRepositoryImpl) FindById(tx *gorm.DB, id int) (bool, *AclEntity, er
 }
 
 func (ri *AclRepositoryImpl) Save(tx *gorm.DB, aclEntity *AclEntity) error {
-	if err := database.DB.Save(aclEntity).Error; err != nil {
+	if err := tx.Save(aclEntity).Error; err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (ri *AclRepositoryImpl) DeleteById(tx *gorm.DB, id int) error {
+	if err := tx.Delete(&AclEntity{}, id).Error; err != nil {
 		return err
 	}
 

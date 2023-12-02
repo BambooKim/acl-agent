@@ -9,16 +9,25 @@ import (
 	"github.com/bambookim/acl-agent/acl-api-server/global/database"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	vpp_acl "go.ligato.io/vpp-agent/v3/proto/ligato/vpp/acl"
+	"gorm.io/gorm"
 )
 
 type AclService interface {
 	GetAclList() ([]*GetAclResponse, error)
 	CreateAcl(req *CreateAclRequest) error
+	DeleteAcl(id int) error
 }
 
 type AclServiceImpl struct {
 	AclRepository
 	client *clientv3.Client
+}
+
+func NewAclService(client *clientv3.Client, aclRepository *AclRepository) AclService {
+	return &AclServiceImpl{
+		AclRepository: *aclRepository,
+		client:        client,
+	}
 }
 
 func (si *AclServiceImpl) GetAclList() ([]*GetAclResponse, error) {
@@ -52,13 +61,6 @@ func (si *AclServiceImpl) GetAclList() ([]*GetAclResponse, error) {
 	}
 
 	return ret, nil
-}
-
-func NewAclService(client *clientv3.Client, aclRepository *AclRepository) AclService {
-	return &AclServiceImpl{
-		AclRepository: *aclRepository,
-		client:        client,
-	}
 }
 
 func (si *AclServiceImpl) CreateAcl(req *CreateAclRequest) error {
@@ -204,4 +206,33 @@ func getUdpRule(dto *CreateAclRequest) *vpp_acl.ACL_Rule_IpRule {
 			},
 		},
 	}
+}
+
+func (si *AclServiceImpl) DeleteAcl(id int) error {
+	tx := database.DB.Begin()
+
+	exists, findAcl, err := si.AclRepository.FindById(tx, id)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+	if !exists {
+		tx.Rollback()
+		return gorm.ErrRecordNotFound
+	}
+
+	if err := si.AclRepository.DeleteById(tx, id); err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	if res, err := si.client.Delete(context.Background(), "/vnf-agent/vpp1/"+vpp_acl.Key(findAcl.Name)); err != nil {
+		tx.Rollback()
+		return err
+	} else {
+		log.Printf("delete kv result: %+v", res)
+	}
+
+	tx.Commit()
+	return nil
 }

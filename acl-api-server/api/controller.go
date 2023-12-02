@@ -4,15 +4,18 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"strconv"
 
 	"github.com/bambookim/acl-agent/acl-api-server/domain/acl"
 	"github.com/gin-gonic/gin"
 	clientv3 "go.etcd.io/etcd/client/v3"
+	"gorm.io/gorm"
 )
 
 var (
 	ERROR_CODE = map[string]int{
-		"INVALIDATE_PROTOCOL": http.StatusBadRequest,
+		"INVALIDATE_PROTOCOL":          http.StatusBadRequest,
+		gorm.ErrRecordNotFound.Error(): http.StatusBadRequest,
 	}
 )
 
@@ -66,6 +69,7 @@ func (ci *AclControllerImpl) CreateAcl(c *gin.Context) {
 	body, err := io.ReadAll(c.Request.Body)
 	if err != nil {
 		errorResponse(c, err)
+		return
 	}
 	json.Unmarshal(body, reqDto)
 
@@ -82,11 +86,21 @@ func (ci *AclControllerImpl) ModifyAcl(c *gin.Context) {
 }
 
 func (ci *AclControllerImpl) DeleteAcl(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		errorResponse(c, err)
+		return
+	}
+	if err := ci.AclService.DeleteAcl(id); err != nil {
+		errorResponse(c, err)
+		return
+	}
 
+	c.JSON(http.StatusOK, "deleted")
 }
 
 func errorResponse(c *gin.Context, err error) {
-	c.AbortWithStatusJSON(getStatusCode(err), err)
+	c.AbortWithStatusJSON(getStatusCode(err), err.Error())
 }
 
 func getStatusCode(err error) int {
