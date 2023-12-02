@@ -14,6 +14,9 @@ func main() {
 }
 
 func Run() {
+	// database
+	// database.Connect()
+
 	// etcd
 	client, err := clientv3.New(clientv3.Config{
 		Endpoints:   []string{"http://127.0.0.1:2379"},
