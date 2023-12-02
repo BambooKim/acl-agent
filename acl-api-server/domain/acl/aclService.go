@@ -12,12 +12,46 @@ import (
 )
 
 type AclService interface {
+	GetAclList() ([]*GetAclResponse, error)
 	CreateAcl(req *CreateAclRequest) error
 }
 
 type AclServiceImpl struct {
 	AclRepository
 	client *clientv3.Client
+}
+
+func (si *AclServiceImpl) GetAclList() ([]*GetAclResponse, error) {
+	tx := database.DB.Begin()
+
+	acls, err := si.AclRepository.FindAll(tx)
+	if err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+
+	tx.Commit()
+
+	ret := make([]*GetAclResponse, 0)
+	for _, acl := range acls {
+		ret = append(ret, &GetAclResponse{
+			Id:              acl.Id,
+			Name:            acl.Name,
+			Action:          AclAction(acl.Action),
+			Direction:       AclDirection(acl.Direction),
+			SourceCidr:      acl.SourceCidr,
+			SourcePortStart: acl.SourcePortStart,
+			SourcePortStop:  acl.SourcePortStop,
+			DestCidr:        acl.DestCidr,
+			DestPortStart:   acl.DestPortStart,
+			DestPortStop:    acl.DestPortStop,
+			Protocol:        AclProtocol(acl.Protocol),
+			CreatedAt:       acl.CreatedAt,
+			ModifiedAt:      acl.ModifiedAt,
+		})
+	}
+
+	return ret, nil
 }
 
 func NewAclService(client *clientv3.Client, aclRepository *AclRepository) AclService {

@@ -48,7 +48,13 @@ func NewAclController(aclService *acl.AclService) AclController {
 }
 
 func (ci *AclControllerImpl) GetAclList(c *gin.Context) {
+	acls, err := ci.AclService.GetAclList()
+	if err != nil {
+		errorResponse(c, err)
+		return
+	}
 
+	c.JSON(http.StatusOK, acls)
 }
 
 func (ci *AclControllerImpl) GetAclByIndex(c *gin.Context) {
