@@ -30,7 +30,7 @@ type AclAction string
 const (
 	ACL_ACTION_PERMIT         AclAction = "permit"
 	ACL_ACTION_DENY           AclAction = "deny"
-	ACL_ACTION_PERMIT_REFLECT AclAction = "permit+reflect"
+	ACL_ACTION_PERMIT_REFLECT AclAction = "reflect"
 )
 
 type AclDirection string

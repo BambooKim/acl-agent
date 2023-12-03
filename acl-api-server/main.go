@@ -7,6 +7,7 @@ import (
 	"github.com/bambookim/acl-agent/acl-api-server/api"
 	"github.com/bambookim/acl-agent/acl-api-server/domain/acl"
 	"github.com/bambookim/acl-agent/acl-api-server/global/database"
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
 	clientv3 "go.etcd.io/etcd/client/v3"
@@ -57,6 +58,12 @@ func Run(client *clientv3.Client) {
 	*/
 
 	router := gin.Default()
+
+	config := cors.DefaultConfig()
+	config.AllowOrigins = []string{"*"}
+	config.AllowMethods = []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}
+	router.Use(cors.New(config))
+
 	apiGroup := router.Group("/api")
 	api.AclControllerRoute(apiGroup, client)
 

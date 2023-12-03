@@ -1,1 +1,3 @@
 acl-api-server/config-local.yml
+
+frontend/node_modules
