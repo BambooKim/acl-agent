@@ -3,8 +3,23 @@ import axios from 'axios';
 
 import Table from 'react-bootstrap/Table';
 
-import logo from './logo.svg';
-import './App.css';
+import AclForm from './AclForm';
+
+import 'bootstrap/dist/css/bootstrap.css';
+
+
+const convertDate = (dateStr) => {
+  const rawDate = new Date(dateStr)
+
+  const year = rawDate.getFullYear();
+  const month = (rawDate.getMonth() + 1).toString().padStart(2, '0');
+  const day = rawDate.getDate().toString().padStart(2, '0');
+  const hours = rawDate.getHours().toString().padStart(2, '0');
+  const minutes = rawDate.getMinutes().toString().padStart(2, '0');
+
+  return `${year}년 ${month}월 ${day}일 ${hours}시 ${minutes}분`
+}
+
 
 const App = () => {
   const [data, setData] = useState([]);
@@ -26,12 +41,12 @@ const App = () => {
 
   return (
     <div>
-      <h1>Data Table</h1>
-        <Table bordered>
+      <h1>ACL Agent</h1>
+      <Table bordered>
         <thead>
           <tr>
-            <th>Id</th>
             <th>Name</th>
+            <th>Protocol</th>
             <th>Action</th>
             <th>Direction</th>
             <th>SourceCidr</th>
@@ -40,17 +55,17 @@ const App = () => {
             <th>DestCidr</th>
             <th>DestPortStart</th>
             <th>DestPortStop</th>
-            <th>Protocol</th>
-            <th>CreatedAt</th>
-            <th>ModifiedAt</th>
+            
+            {/* <th>CreatedAt</th>
+            <th>ModifiedAt</th> */}
           </tr>
         </thead>
         <tbody>
           {data.map((item) => {
             return (
               <tr key={item.id}>
-                <td>{item.id}</td>
                 <td>{item.name}</td>
+                <td>{item.protocol}</td>
                 <td>{item.action}</td>
                 <td>{item.direction}</td>
                 <td>{item.sourceCidr}</td>
@@ -59,14 +74,15 @@ const App = () => {
                 <td>{item.destCidr}</td>
                 <td>{item.destPortStart}</td>
                 <td>{item.destPortStop}</td>
-                <td>{item.protocol}</td>
-                <td>{item.createdAt}</td>
-                <td>{item.modifiedAt}</td>
+                
+                {/* <td>{convertDate(item.createdAt)}</td>
+                <td>{convertDate(item.modifiedAt)}</td> */}
               </tr>
             )
           })}
         </tbody>
       </Table>
+      <AclForm/>
     </div>
   );
 }
